@@ -27,6 +27,7 @@ class Dictionary:
             self.word_to_idx[word] = self.n_words
             self.words_count[word] = 1
             self.idx_to_word[self.n_words] = word
+            self.n_words += 1
         else:
             self.words_count[word] += 1
 
@@ -50,7 +51,7 @@ class SentenceReader:
 
     def get_tokenized(self):
         print('Tokenizing %s ...' %(self.lang))
-        return [[w for w in s.split()] for s in self.read_sentences()]
+        return [[w for w in s.split()] for s in self.sentences]
 
 
 def prepare_dataset(in_lang, out_lang):

@@ -4,6 +4,7 @@ import string
 import json
 import pandas as pd
 from nltk.corpus import stopwords
+from collections import OrderedDict
 
 DIR = os.getcwd()
 FILE = os.path.join(DIR, 'hotel-reviews/7282_1.csv')
@@ -55,12 +56,12 @@ def filter_by_column(df, column, value):
     return filtered
 
 def cleaner_job(text):
-    PROCESSOR = {
+    PROCESSOR = OrderedDict({
         'strip_punctuation': strip_punctuations,
         'strip_extra_spaces': strip_extra_whitespaces,
         'strip_stopwords': strip_stopwords,
-        'strip_numeric': strip_numeric
-    }
+#        'strip_numeric': strip_numeric
+    })
     for k, processor in PROCESSOR.items():
         text = processor(text)
     return text
