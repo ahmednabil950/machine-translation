@@ -59,7 +59,7 @@ def cleaner_job(text):
     PROCESSOR = OrderedDict({
         'strip_punctuation': strip_punctuations,
         'strip_extra_spaces': strip_extra_whitespaces,
-        'strip_stopwords': strip_stopwords,
+        # 'strip_stopwords': strip_stopwords,
 #        'strip_numeric': strip_numeric
     })
     for k, processor in PROCESSOR.items():
@@ -84,3 +84,6 @@ def strip_numeric(qry):
     RE_NUMERIC = re.compile(r"[0-9]+", re.UNICODE)
     qry = str(qry)
     return RE_NUMERIC.sub("", qry)
+
+def get_batches():
+    pass
