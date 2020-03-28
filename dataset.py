@@ -22,7 +22,7 @@ class Dictionary:
         print('Building Dictionary for lang %s' %(name))
         self.name = name
         self.word_to_idx = {}
-        self.idx_to_word = {'<S>': SOS, '</S>': EOS}
+        self.idx_to_word = {0: "<S>", 1: "</S>"}
         self.words_count = {}
         self.n_words = 2  # Count SOS, EOS special tokens
 
@@ -71,12 +71,12 @@ class SentenceReader(Reader):
     https://stackoverflow.com/questions/2473783/is-there-a-way-to-circumvent-python-list-append-becoming-progressively-slower
     
     """
-    def __init__(self, input_lang_map, outpt_lang_map):
-        super(SentenceReader, self).__init__(input_lang_map, outpt_lang_map)
+    def __init__(self, input_lang_map, outpt_lang_map, max_length=10):
+        super(SentenceReader, self).__init__(input_lang_map, outpt_lang_map, max_len=max_length)
         in_lang, in_path = tuple(*(input_lang_map.items()))
         out_lang, out_path = tuple(*(outpt_lang_map.items()))
-        self.input = Reader(lang=in_lang, path=in_path)
-        self.outpt = Reader(lang=out_lang, path=out_path)
+        self.input = Reader(lang=in_lang, path=in_path, max_len=max_length)
+        self.outpt = Reader(lang=out_lang, path=out_path, max_len=max_length)
         self.lang_map = {in_lang: self.input, out_lang: self.outpt}
         self.input.read()
         self.outpt.read()
@@ -114,21 +114,22 @@ class SentenceReader(Reader):
         
         for reader in [self.input, self.outpt]:
             for i, sentence in enumerate(reader.sentences):
-                if len(sentence.split()) > max_len:
+                if len(sentence.split()) >= max_len:
                     to_remove.add(i)
                 elif len(sentence.split()) < min_len:
                     to_remove.add(i)
                 if i not in to_remove:
                     to_have.add(i)
+                    
+        for reader in [self.input, self.outpt]:
             to_have = [i for i in to_have if i not in to_remove]
             sent_series_obj = pd.Series(reader.sentences)
             reader.sentences = sent_series_obj[[i for i in to_have]].tolist()
-            to_have = set(to_have)
 
-def prepare_dataset(in_lang_path, out_lang_path):
+def prepare_dataset(in_lang_path, out_lang_path, max_length=10):
     print('Preparing Dataset')
     
-    reader = SentenceReader({'en': in_lang_path}, {'ar': out_lang_path})
+    reader = SentenceReader({'en': in_lang_path}, {'ar': out_lang_path}, max_length=max_length)
 
     pairs = [(in_sent, out_sent) for (in_sent, out_sent) in zip(reader.read_sentences('en'), 
                                                                 reader.read_sentences('ar'))]

@@ -54,6 +54,7 @@ class Seq2seqModel(Model):
     
     def __init__(self, **kw):
         self.lr = kw['lr']
+        self.max_length = kw['max_length']
         self.dictionaries = kw['dictionaries']
         self.iterations = kw['iterations']
         self.encoder = EncoderRNN(kw['input_size'], kw['hidden_size']).to(DEVICE)
@@ -70,16 +71,16 @@ class Seq2seqModel(Model):
         plot_losses = []
         print_loss_total = 0
         plot_loss_total = 0
-        print_every = 3000
-        plot_every = 3000
+        print_every = 5000
+        plot_every = 5000
         
         # tik tok
         start = time.time()
                 
         for iter in range(1, self.iterations):
             random_sample = tensors[iter-1]
-            input_tensor = random_sample[0]
-            output_tensor = random_sample[1]
+            input_tensor = random_sample[0] + [EOS]
+            output_tensor = random_sample[1] + [EOS]
             
             loss = self.steps_over_sequence(input_tensor, output_tensor)
             print_loss_total += loss
@@ -98,7 +99,7 @@ class Seq2seqModel(Model):
                 
         self.plot(plot_losses)
             
-    def steps_over_sequence(self, input_tensor, output_tensor, max_length=10):
+    def steps_over_sequence(self, input_tensor, output_tensor):
         ht_encoder = self.encoder.initHidden()
         
         # initial gradients
@@ -113,7 +114,7 @@ class Seq2seqModel(Model):
         loss = 0
         
         ## Encoder feed forward
-        encoder_outputs = torch.zeros(max_length, self.encoder.hidden_size, device=DEVICE)
+        encoder_outputs = torch.zeros(self.max_length, self.encoder.hidden_size, device=DEVICE)
         for i_step in range(input_length):
             yt_encoder, ht_encoder = self.encoder(input_tensor[i_step], ht_encoder)
             encoder_outputs[i_step] = yt_encoder[0, 0]
@@ -155,35 +156,35 @@ class Seq2seqModel(Model):
             print('Input  |', pair[0])
             print('Output |', pair[1])
             sentence = [word2ix[w] for w in pair[0].split()] + [EOS]
-            output_words = self._evaluate(sentence)
+            output_words = self.predict(sentence)
             output_sentence = '  '.join(output_words)            
             print('Pred   |', output_sentence)
             print('===='*20)
     
-    def _evaluate(self, sentence_encoded, max_length=10, **kw):
+    def predict(self, sentence_encoded, **kw):
         ix2word = self.dictionaries['output'].idx_to_word
         with torch.no_grad():
             input_tensor = torch.tensor(sentence_encoded, device=DEVICE).view(-1, 1)
             input_length = input_tensor.size()[0]
-            encoder_hidden = self.encoder.initHidden()
+            ht_encoder = self.encoder.initHidden()
 
-            encoder_outputs = torch.zeros(max_length, self.encoder.hidden_size, device=DEVICE)
+            encoder_outputs = torch.zeros(self.max_length, self.encoder.hidden_size, device=DEVICE)
 
             for i_step in range(input_length):
-                encoder_output, encoder_hidden = self.encoder(input_tensor[i_step], encoder_hidden)
+                encoder_output, ht_encoder = self.encoder(input_tensor[i_step], ht_encoder)
                 encoder_outputs[i_step] += encoder_output[0, 0]
 
             decoder_input = torch.tensor([[SOS]], device=DEVICE)  # SOS
 
-            decoder_hidden = encoder_hidden
+            ht_decoder = ht_encoder
 
             decoded_words = []
 
-            for _ in range(max_length):
-                decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden)
+            for _ in range(self.max_length):
+                decoder_output, ht_decoder = self.decoder(decoder_input, ht_decoder)
                 topv, topi = decoder_output.data.topk(1)
                 if topi.item() == EOS:
-                    decoded_words.append('<EOS>')
+                    decoded_words.append(ix2word[EOS])
                     break
                 else:
                     decoded_words.append(ix2word[topi.item()])
@@ -206,8 +207,10 @@ if __name__ == "__main__":
     OUTPUT_SIZE = data.get('out_dictionary').n_words
     
     tensors = data.get('pairs_encoded')
+    dictionaries = {'output': data.get('out_dictionary'),
+                    'input' : data.get('in_dictionary')}
     
-    model = Seq2seqModel(iterations=100, lr=0.01, hidden_size=HIDDEN_SIZE, 
-                         input_size=INPUT_SIZE, output_size=OUTPUT_SIZE)
+    model = Seq2seqModel(iterations=100, lr=0.01, hidden_size=HIDDEN_SIZE, dictionaries=dictionaries,
+                         input_size=INPUT_SIZE, output_size=OUTPUT_SIZE, max_length=7)
     
-    model.train(tensors=tensors)
+    model.train(tensors=tensors[:5000])
